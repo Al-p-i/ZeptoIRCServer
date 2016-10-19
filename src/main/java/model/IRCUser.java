@@ -6,7 +6,14 @@ import org.jetbrains.annotations.NotNull;
  * @author apomosov
  */
 public class IRCUser {
-  private final long id;
+  @NotNull
+  private final String name;
+  @NotNull
+  private volatile IRCChannel ircChannel;
+
+  public IRCUser(@NotNull String name) {
+    this.name = name;
+  }
 
   @NotNull
   public String getName() {
@@ -14,10 +21,11 @@ public class IRCUser {
   }
 
   @NotNull
-  private final String name;
+  public IRCChannel getIrcChannel() {
+    return ircChannel;
+  }
 
-  public IRCUser(int id, @NotNull String name) {
-    this.id = id;
-    this.name = name;
+  public void setIrcChannel(@NotNull IRCChannel ircChannel) {
+    this.ircChannel = ircChannel;
   }
 }

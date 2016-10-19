@@ -18,9 +18,7 @@ import java.util.regex.Matcher;
 @Sharable
 public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<String> {
   @Nullable
-  private volatile IRCUser ircUser;
-  @NotNull
-  private volatile IRCChannel ircChannel;
+  private volatile ThreadLocal<IRCUser> ircUser;
   @NotNull
   private final Object lock = new Object();
 
@@ -47,7 +45,7 @@ public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<Stri
         } else response = "*** Usage ***\n>> /leave\n";
       } else if (trimmedRequest.startsWith("/users")) {
         if (Commands.USERS_PATTERN.matcher(request).matches()) {
-          response = listUsers(ircChannel);
+          response = listUsers(ircUser.get().getIrcChannel());
         } else response = "*** Usage ***\n>> /users\n";
       } else if (trimmedRequest.startsWith("/login")) {
         Matcher loginMatcher = Commands.LOGIN_PATTERN.matcher(request);
@@ -57,7 +55,7 @@ public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<Stri
       } else if (trimmedRequest.startsWith("/join")) {
         Matcher joinMatcher = Commands.JOIN_PATTERN.matcher(request);
         if (joinMatcher.find()) {
-          response = joinChannel(ircUser, joinMatcher.group(1));
+          response = joinChannel(ircUser.get(), joinMatcher.group(1));
         } else response = "*** Usage ***\n>> /join channel\n";
       } else {
         response = "*** Unknown command \"" + request + "\" ***\n";
@@ -72,9 +70,7 @@ public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<Stri
     ChannelFuture future = ctx.write(response);
 
     // Close the connection if ircUser send /quit
-    if (close)
-
-    {
+    if (close) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
 
@@ -90,14 +86,14 @@ public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<Stri
       if (ircUser == null) {
         return "*** login first ***\n";
       }
-      this.ircChannel = new IRCChannel(1, channel);
+      this.ircUser.get().setIrcChannel(new IRCChannel(channel));
       return "*** joined channel " + channel + "***\n";//TODO
     }
   }
 
   @NotNull
   private String listUsers(@Nullable IRCChannel ircChannel) {
-    if (this.ircChannel == null) {
+    if (this.ircUser.get().getIrcChannel() == null) {
       return "*** join channel first ***\n";
     }
     return "sasha\npetya\n";//TODO
@@ -106,8 +102,8 @@ public class IRCServerConnectionHandler extends SimpleChannelInboundHandler<Stri
   @NotNull
   private String login(@NotNull String login, @NotNull String password) {
     synchronized (lock) {
-      this.ircUser = new IRCUser(1, login);
-      return "*** Hello " + ircUser.getName() + " ***\n";
+      this.ircUser.set(new IRCUser(login));
+      return "*** Hello " + ircUser.get().getName() + " ***\n";
     }
   }
 
